@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<!-- saved from url=(0096)file:///C:/Users/AYUSH%20KUMAR%20SINGH/Downloads/quiz%20buzzer%20%E2%80%94%20voice%20answer.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz Buzzer — Voice Answer</title>
+  <style>
+    :root{--bg:#0f172a;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass: rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+    body{background:linear-gradient(180deg,#041024 0%, #081028 100%);color:#e6eef6;display:flex;align-items:center;justify-content:center;padding:24px}
+    .container{width:100%;max-width:1100px}
+    .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    h1{margin:0;font-size:20px}
+    label{display:block;margin-bottom:6px;color:var(--muted);font-size:13px}
+    input[type=text], select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .grid{display:grid;grid-template-columns:1fr 420px;gap:14px}
+    .left{min-height:420px}
+    .players{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+    .player{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:8px;background:var(--glass)}
+    button{cursor:pointer;padding:12px 16px;border-radius:10px;border:0;background:var(--accent);color:#042029;font-weight:700}
+    .buzz-btn{font-size:28px;padding:18px;border-radius:16px;background:linear-gradient(180deg,#06b6d4,#0891b2);color:#002425}
+    .disabled{opacity:0.45;pointer-events:none}
+    .host-panel{display:flex;flex-direction:column;gap:8px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:8px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);font-size:14px}
+    .small{font-size:12px;color:var(--muted)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    .muted-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:9px 12px;border-radius:10px}
+    .footer{margin-top:12px;color:var(--muted);font-size:13px}
+    .chip{background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:999px;font-weight:600}
+    audio{width:160px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr;}.left{order:2}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <header>
+        <h1>Quiz Buzzer — Voice Answer</h1>
+        <div class="small">Mode: <span class="chip" id="modeChip">BroadcastChannel (local, same-origin tabs)</span></div>
+      </header>
+
+      <div class="grid">
+        <div class="left">
+          <section id="joinSection" class="card-section">
+            <label>Room name (use same room across tabs/devices)</label>
+            <input id="roomInput" type="text" placeholder="room-1" value="room-1">
+
+            <label style="margin-top:8px">Your name</label>
+            <input id="nameInput" type="text" placeholder="Enter your name" value="Player">
+
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button id="joinBtn">Join Room</button>
+              <button id="hostBtn" class="muted-btn">Open Host View</button>
+              <button id="helpBtn" class="muted-btn">Help</button>
+            </div>
+
+            <div class="footer">After joining, open this file in multiple tabs (players) using same room name to test multi-player locally.</div>
+          </section>
+
+          <div id="playerArea" style="display:none;margin-top:16px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="flex:1">
+                <div class="small">Logged in as</div>
+                <div style="font-weight:800;font-size:18px" id="meName">Player</div>
+              </div>
+              <div style="text-align:right">
+                <div class="small">Auto-lock after first buzz</div>
+                <label style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                  <input type="checkbox" id="autoLock">
+                  <span class="small">Enable</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="margin-top:18px;display:flex;gap:12px;align-items:center">
+              <button id="buzzBtn" class="buzz-btn">BUZZ</button>
+              <div style="flex:1">
+                <div class="small">Status</div>
+                <div id="statusLine">Waiting for your buzz...</div>
+                <div class="small" style="margin-top:6px">Your last buzz: <span id="myBuzzTime">—</span></div>
+              </div>
+            </div>
+
+            <div id="postBuzzArea" style="margin-top:14px;display:none">
+              <div class="small">After buzzing, record your voice answer (optional)</div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                <button id="recordBtn" class="muted-btn">Start Recording</button>
+                <button id="stopBtn" class="muted-btn disabled">Stop</button>
+                <div id="recordStatus" class="small">Not recording</div>
+              </div>
+            </div>
+
+            <div style="margin-top:10px" class="small">If you are the host open the host view to see who buzzed and listen to recordings.</div>
+          </div>
+        </div>
+
+        <div class="host-panel card" id="hostPanel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <label class="small">Host Controls (room: <span id="hostRoom">room-1</span>)</label>
+              <div style="font-weight:800" id="hostTitle">Host View</div>
+            </div>
+            <div class="controls">
+              <button id="resetBtn" class="muted-btn">Reset Question</button>
+              <button id="exportBtn" class="muted-btn">Export CSV</button>
+              <button id="toggleVoiceList" class="muted-btn">Toggle Voice Column</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="small">Connected Players</div>
+            <div id="playersList" class="players"></div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="small">Buzz Order</div>
+            <table id="buzzTable">
+              <thead>
+                <tr><th>#</th><th>Name</th><th>Time (ms)</th><th>Time (human)</th><th id="voiceHeader">Voice</th></tr>
+              </thead>
+              <tbody id="buzzTbody"></tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:10px" class="small"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ---------------- Helper / State ----------------
+const bcChannels = {}; // room => BroadcastChannel
+let bc = null;
+let room = document.getElementById('roomInput').value || 'room-1';
+let me = {id: null, name: null};
+let players = {}; // id => {id,name,lastSeen}
+let buzzes = []; // {id,name,timestamp,perf,recordingBlob}
+let acceptBuzzes = true;
+let isHostView = false;
+let mediaRecorder = null;
+let recordedChunks = [];
+let lastBuzzId = null;
+
+// Utility: create unique id
+function uid(prefix='u'){return prefix + Math.random().toString(36).slice(2,9)}
+
+// High-res timestamp (ms since epoch + perf)
+function preciseNow(){
+  // combine Date.now (wall clock) with performance.now() fractional part to get better resolution
+  return Date.now() + (performance.now() % 1);
+}
+
+// ---------------- UI refs ----------------
+const roomInput = document.getElementById('roomInput');
+const nameInput = document.getElementById('nameInput');
+const joinBtn = document.getElementById('joinBtn');
+const hostBtn = document.getElementById('hostBtn');
+const helpBtn = document.getElementById('helpBtn');
+const playerArea = document.getElementById('playerArea');
+const meName = document.getElementById('meName');
+const buzzBtn = document.getElementById('buzzBtn');
+const statusLine = document.getElementById('statusLine');
+const myBuzzTime = document.getElementById('myBuzzTime');
+const postBuzzArea = document.getElementById('postBuzzArea');
+const recordBtn = document.getElementById('recordBtn');
+const stopBtn = document.getElementById('stopBtn');
+const recordStatus = document.getElementById('recordStatus');
+const playersList = document.getElementById('playersList');
+const buzzTbody = document.getElementById('buzzTbody');
+const hostRoom = document.getElementById('hostRoom');
+const resetBtn = document.getElementById('resetBtn');
+const exportBtn = document.getElementById('exportBtn');
+const toggleVoiceList = document.getElementById('toggleVoiceList');
+const modeChip = document.getElementById('modeChip');
+const voiceHeader = document.getElementById('voiceHeader');
+
+// ---------------- BroadcastChannel: local sync ----------------
+function openRoomBC(r){
+  if(bc) bc.close();
+  bc = new BroadcastChannel('quiz-buzzer-' + r);
+  bc.onmessage = (ev)=>{
+    const msg = ev.data;
+    if(!msg || !msg.type) return;
+    // handle messages
+    switch(msg.type){
+      case 'join': handleJoinMessage(msg); break;
+      case 'player-list-request': sendPlayerList(); break;
+      case 'buzz': handleBuzzMessage(msg); break;
+      case 'record': handleRecordMessage(msg); break;
+      case 'reset': handleResetMessage(msg); break;
+    }
+  }
+}
+
+function broadcast(msg){ if(bc) bc.postMessage(msg); }
+
+// ---------------- Events ----------------
+joinBtn.addEventListener('click', ()=>{
+  room = roomInput.value || 'room-1';
+  openRoomBC(room);
+  me.id = uid('p');
+  me.name = nameInput.value.trim() || 'Player';
+  meName.textContent = me.name;
+  hostRoom.textContent = room;
+  playerArea.style.display = 'block';
+  document.getElementById('joinSection').style.display = 'none';
+  players[me.id] = {id:me.id,name:me.name,lastSeen:Date.now()};
+  broadcast({type:'join', room, id:me.id, name:me.name, ts:Date.now()});
+  sendPlayerList();
+});
+
+hostBtn.addEventListener('click', ()=>{
+  alert('Open a new tab and join the same room to act as players. This page is your host view.');
+  isHostView = true;
+  // host view simply shows the same room's data; you can join as host with a name too
+});
+
+helpBtn.addEventListener('click', ()=>{
+  alert('Usage:\n1) Open this file in multiple tabs.\n2) In each tab choose the same room name and a different player name, then click Join Room.\n3) Players press BUZZ. Host view shows order and recordings.\nFor cross-device sync, integrate Firebase (see top comments).');
+});
+
+buzzBtn.addEventListener('click', ()=>{
+  if(!acceptBuzzes){ statusLine.textContent = 'Buzzes locked for this question.'; return; }
+  // disable button for this user
+  buzzBtn.classList.add('disabled');
+  const t = preciseNow();
+  lastBuzzId = uid('b');
+  myBuzzTime.textContent = t.toFixed(3);
+  statusLine.textContent = 'You buzzed! Wait for host.';
+  postBuzzArea.style.display = 'block';
+  const buzzMsg = {type:'buzz', room, buzzId:lastBuzzId, id:me.id, name:me.name, ts:t};
+  // local record
+  handleBuzzMessage(buzzMsg, true);
+  broadcast(buzzMsg);
+  if(document.getElementById('autoLock').checked){ acceptBuzzes = false; }
+});
+
+// Recording
+recordBtn.addEventListener('click', async ()=>{
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ alert('Recording not supported in this browser'); return; }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e)=>{ if(e.data.size>0) recordedChunks.push(e.data); }
+    mediaRecorder.onstop = ()=>{
+      const blob = new Blob(recordedChunks,{type:'audio/webm'});
+      recordStatus.textContent = 'Saved locally';
+      // send recording to others via BroadcastChannel (as Blob cannot be posted across different origins reliably, we send it as ArrayBuffer)
+      blob.arrayBuffer().then(buf=>{
+        const arr = new Uint8Array(buf);
+        const msg = {type:'record', room, buzzId:lastBuzzId, id:me.id, name:me.name, ts:Date.now(), audio:arr};
+        // include simple metadata and audio bytes
+        broadcast(msg);
+        // also locally attach
+        handleRecordMessage(msg, blob);
+      })
+    }
+    mediaRecorder.start();
+    recordBtn.classList.add('disabled'); stopBtn.classList.remove('disabled');
+    recordStatus.textContent = 'Recording...';
+  }catch(err){ console.error(err); alert('Microphone access denied or unavailable.'); }
+});
+
+stopBtn.addEventListener('click', ()=>{
+  if(mediaRecorder && mediaRecorder.state==='recording'){ mediaRecorder.stop(); stopBtn.classList.add('disabled'); recordBtn.classList.remove('disabled'); }
+});
+
+resetBtn.addEventListener('click', ()=>{
+  // clear buzzes, allow buzzing
+  acceptBuzzes = true; players = {}; buzzes = []; lastBuzzId = null; updatePlayersUI(); updateBuzzUI();
+  broadcast({type:'reset', room, ts:Date.now()});
+});
+
+exportBtn.addEventListener('click', ()=>{
+  // CSV export
+  let csv = 'Rank,Name,TimeMS,TimeHuman,HasVoice\n';
+  buzzes.forEach((b,i)=>{
+    csv += `${i+1},"${b.name}",${b.ts},"${new Date(Math.floor(b.ts)).toISOString()}",${b.hasRecording?1:0}\n`;
+  });
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'buzzes.csv'; a.click(); URL.revokeObjectURL(url);
+});
+
+toggleVoiceList.addEventListener('click', ()=>{
+  const col = voiceHeader; const visible = col.style.display !== 'none';
+  col.style.display = visible ? 'none' : '';
+  // hide audio cells as well
+  document.querySelectorAll('.voice-cell').forEach(c=> c.style.display = visible ? 'none' : '');
+});
+
+// ---------------- Message handlers ----------------
+function handleJoinMessage(msg){
+  players[msg.id] = {id:msg.id,name:msg.name,lastSeen:Date.now()};
+  updatePlayersUI();
+}
+
+function sendPlayerList(){
+  // announce yourself so host can know
+  broadcast({type:'join', room, id:me.id, name:me.name, ts:Date.now()});
+}
+
+function handleBuzzMessage(msg, local=false){
+  // if acceptBuzzes false and not local, ignore
+  if(!acceptBuzzes && !local) return;
+  // avoid duplicates
+  if(buzzes.some(b=>b.buzzId===msg.buzzId)) return;
+  const item = {buzzId:msg.buzzId, id:msg.id, name:msg.name, ts:msg.ts, timeHuman:new Date(Math.floor(msg.ts)).toLocaleTimeString(), hasRecording:false, recordingBlob:null};
+  buzzes.push(item);
+  // sort by ts ascending
+  buzzes.sort((a,b)=>a.ts - b.ts);
+  updateBuzzUI();
+}
+
+function handleRecordMessage(msg, localBlob=null){
+  // msg.audio is Uint8Array if remote, or localBlob present
+  const target = buzzes.find(b=>b.buzzId===msg.buzzId);
+  if(!target){
+    // if we don't have the buzz yet, create a placeholder
+    const item = {buzzId:msg.buzzId, id:msg.id, name:msg.name, ts:msg.ts || Date.now(), timeHuman:new Date(Math.floor(msg.ts||Date.now())).toLocaleTimeString(), hasRecording:true, recordingBlob:null};
+    buzzes.push(item);
+    // attach after
+  }
+  const tb = buzzes.find(b=>b.buzzId===msg.buzzId);
+  if(localBlob){ tb.recordingBlob = localBlob; tb.hasRecording = true; updateBuzzUI(); return; }
+  if(msg.audio){
+    // reconstruct blob
+    const arr = new Uint8Array(msg.audio);
+    const blob = new Blob([arr],{type:'audio/webm'});
+    tb.recordingBlob = blob; tb.hasRecording = true; updateBuzzUI();
+  }
+}
+
+function handleResetMessage(msg){
+  players = {}; buzzes = []; acceptBuzzes = true; lastBuzzId = null; updatePlayersUI(); updateBuzzUI();
+}
+
+// ---------------- UI updates ----------------
+function updatePlayersUI(){
+  playersList.innerHTML = '';
+  Object.values(players).forEach(p=>{
+    const div = document.createElement('div'); div.className='player';
+    div.innerHTML = `<div><strong>${escapeHtml(p.name)}</strong><div class="small">id: ${p.id}</div></div><div class="small">online</div>`;
+    playersList.appendChild(div);
+  });
+}
+
+function updateBuzzUI(){
+  buzzTbody.innerHTML = '';
+  buzzes.forEach((b,i)=>{
+    const tr = document.createElement('tr');
+    const rankTd = document.createElement('td'); rankTd.textContent = i+1;
+    const nameTd = document.createElement('td'); nameTd.textContent = b.name;
+    const timeTd = document.createElement('td'); timeTd.textContent = b.ts.toFixed?b.ts.toFixed(3):b.ts;
+    const humanTd = document.createElement('td'); humanTd.textContent = b.timeHuman;
+    const voiceTd = document.createElement('td'); voiceTd.className='voice-cell';
+    if(b.hasRecording && b.recordingBlob){
+      const url = URL.createObjectURL(b.recordingBlob);
+      voiceTd.innerHTML = `<audio controls src="${url}"></audio>`;
+    }else if(b.hasRecording){
+      voiceTd.textContent = 'saved';
+    }else{
+      voiceTd.textContent = '-';
+    }
+    tr.appendChild(rankTd); tr.appendChild(nameTd); tr.appendChild(timeTd); tr.appendChild(humanTd); tr.appendChild(voiceTd);
+    buzzTbody.appendChild(tr);
+  });
+}
+
+// ---------------- Utilities ----------------
+function escapeHtml(str){ return String(str).replace(/[&<>"']/g, (m)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
+
+// ---------------- Optional: Firebase placeholder ----------------
+/*
+To enable cross-device real-time syncing across different browsers/devices you can use Firebase Realtime Database or Firestore.
+Basic idea (not enabled in this file):
+1) Include Firebase SDK scripts in the head (from https://www.gstatic.com/firebasejs/).
+2) Initialize Firebase with your project config.
+3) Use a room path like /rooms/{room}/buzzes and push buzz objects; subscribe to value changes to update local state.
+4) For recordings, you'd upload audio blobs to Firebase Storage and store the download URL in the DB.
+
+We left this out to keep the file standalone. If you want, I can generate a version with Firebase fully wired (you'll need to supply config keys).
+*/
+
+// ---------------- Init ----------------
+// update loop to remove stale players (simple)
+setInterval(()=>{
+  const cutoff = Date.now() - 20_000;
+  Object.keys(players).forEach(k=>{ if(players[k].lastSeen < cutoff) delete players[k]; });
+  updatePlayersUI();
+},5000);
+
+// show voice header initially
+voiceHeader.style.display = '';
+modeChip.textContent = 'BroadcastChannel (local, same-origin tabs)';
+
+</script>
+
+
+</body></html>
